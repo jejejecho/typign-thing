@@ -1,144 +1,130 @@
-import pygame
+import tkinter as tk
+from tkinter import messagebox
+from PIL import Image, ImageTk
 import random
-import sys
+import os
 
-pygame.init()
 
-WIDTH, HEIGHT = 800, 500
-GREY = (192, 192, 192)
-BLACK = (0, 0, 0)
-GREEN = (0, 128, 0)
-LIGHT_GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-DARK_GREEN = (0, 100, 0)
-FONT_SIZE = 40
-FPS = 60
-WORD_DURATION = 30
+class HangmanGame:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Hangman Game")
+        self.master.geometry("800x600")
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Typing Game")
-clock = pygame.time.Clock()
+        self.bg_image = Image.open("background.png")
+        self.bg_image = self.bg_image.resize((800, 600))
+        self.bg_photo = ImageTk.PhotoImage(self.bg_image)
 
-font = pygame.font.Font(None, FONT_SIZE)
+        self.create_widgets()
 
-COMMON_WORDS = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'I', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she', 'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me', 'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take', 'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other', 'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also', 'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us']
+    def create_widgets(self):
+        self.canvas = tk.Canvas(self.master, width=800, height=600)
+        self.canvas.pack()
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.bg_photo)
 
-def get_random_word():
-    return random.choice(COMMON_WORDS)
+        self.word_frame = tk.Frame(self.canvas)
+        self.word_frame.place(relx=0.5, rely=0.1, anchor=tk.CENTER)
 
-def draw_text(surface, text, color, font, x, y):
-    text_surface = font.render(text, True, color)
-    text_rect = text_surface.get_rect(center=(x, y))
-    surface.blit(text_surface, text_rect)
+        self.word_labels = []
 
-def start_screen():
-    start_text = font.render("Press Enter to Start", True, BLACK)
-    start_rect = start_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        self.attempts_label = tk.Label(self.canvas, text="Attempts left: ", font=("Arial", 14), bg="white")
+        self.attempts_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
-    screen.fill(GREY)
-    screen.blit(start_text, start_rect)
+        self.canvas.create_text(400, 550, text="Hangman Game", font=("Arial", 20), fill="white")
 
-    pygame.display.flip()
+        self.canvas.create_rectangle(100, 50, 700, 550, outline="white")
 
-    waiting = True
-    while waiting:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    waiting = False
+        self.canvas.create_text(400, 575, text="© 2024", font=("Arial", 10), fill="white")
+
+        self.create_game()
+
+        self.load_images()
+
+        self.display_image()
+
+        self.create_alphabet()
+
+    def create_game(self):
+        self.words = ["apple", "banana", "orange", "grape", "pineapple", "strawberry", "kiwi", "watermelon", "peach"]
+        self.word = random.choice(self.words)
+        self.guessed_letters = []
+        self.attempts = 6
+
+        for letter in self.word:
+            label = tk.Label(self.word_frame, text="_", font=("Arial", 24), bg="white")
+            label.pack(side=tk.LEFT)
+            self.word_labels.append(label)
+
+        self.attempts_label.config(text="Attempts left: {}".format(self.attempts))
+
+    def load_images(self):
+        self.images = []
+        for i in range(self.attempts + 1):
+            image_path = os.path.join("images", f"hangman_{i}.png")
+            image = Image.open(image_path)
+            image = image.resize((200, 200))
+            photo = ImageTk.PhotoImage(image)
+            self.images.append(photo)
+
+    def display_image(self):
+        self.canvas.delete("hangman")
+        self.canvas.create_image(50, 50, anchor=tk.NW, image=self.images[self.attempts], tags="hangman")
+
+    def display_word(self):
+        for i, letter in enumerate(self.word):
+            if letter in self.guessed_letters:
+                self.word_labels[i].config(text=letter)
+            else:
+                self.word_labels[i].config(text="_")
+
+    def guess_letter(self, letter):
+        if letter in self.guessed_letters:
+            messagebox.showwarning("Duplicate Guess", "You've already guessed that letter.")
+            return
+
+        self.guessed_letters.append(letter)
+        if letter not in self.word:
+            self.attempts -= 1
+            self.attempts_label.config(text="Attempts left: {}".format(self.attempts))
+            if self.attempts == 0:
+                messagebox.showinfo("Game Over", "You lose! The word was: {}".format(self.word))
+                self.master.destroy()
+                return
+            else:
+                self.display_image()
+        else:
+            self.display_word()
+            if all(letter in self.guessed_letters for letter in self.word):
+                messagebox.showinfo("Congratulations", "You guessed the word: {}".format(self.word))
+                self.master.destroy()
+                return
+
+        self.update_alphabet(letter)
+
+    def create_alphabet(self):
+        self.alphabet_frame = tk.Frame(self.canvas)
+        self.alphabet_frame.place(relx=0.5, rely=0.7, anchor=tk.CENTER)
+
+        self.alphabet_buttons = []
+        for i, letter in enumerate("abcdefghijklmnopqrstuvwxyz"):
+            row = i // 13
+            col = i % 13
+            button = tk.Button(self.alphabet_frame, text=letter.upper(), font=("Comic Sans MS", 14), bg=None,
+                               command=lambda l=letter: self.guess_letter(l))
+            button.grid(row=row, column=col, padx=5, pady=5)
+            self.alphabet_buttons.append(button)
+
+    def update_alphabet(self, letter):
+        for button in self.alphabet_buttons:
+            if button.cget("text").lower() == letter:
+                button.config(state="disabled")
+
 
 def main():
-    start_screen()
+    root = tk.Tk()
+    game = HangmanGame(root)
+    root.mainloop()
 
-    start_time = pygame.time.get_ticks()
-    word_count = 0
-    total_word_count = 0
-    correct_chars_count = 0
-    total_chars_count = 0
-    timer_started = False
-    game_started = True
-    current_word = get_random_word()
-    typed_word = ''
 
-    restart_button = pygame.Rect(WIDTH - 140, 20, 120, 40)
-
-    running = True
-    while running:
-        screen.fill(GREY)
-
-        elapsed_time = (pygame.time.get_ticks() - start_time) // 1000
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                    pygame.quit()
-                    sys.exit()
-                elif event.key == pygame.K_RETURN:
-                    if timer_started:
-                        if typed_word == current_word:
-                            word_count += 1
-                            total_word_count += 1
-                            correct_chars_count += len(current_word)
-                            total_chars_count += len(current_word)
-                            current_word = get_random_word()
-                        else:
-                            total_chars_count += len(typed_word)  # Update total_chars_count for incorrect typing
-                    else:
-                        timer_started = True
-                    typed_word = ''
-                elif event.key == pygame.K_BACKSPACE:
-                    typed_word = typed_word[:-1]
-                elif event.key != pygame.K_CAPSLOCK:  # Exclude Caps Lock key
-                    typed_word += event.unicode
-                    if event.key != pygame.K_RETURN:  # Exclude Enter key
-                        total_chars_count += 1  # Increment total_chars_count for every keystroke
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if restart_button.collidepoint(event.pos):
-                    start_time = pygame.time.get_ticks()
-                    word_count = 0
-                    total_word_count = 0
-                    correct_chars_count = 0
-                    total_chars_count = 0
-                    timer_started = False
-                    current_word = get_random_word()
-                    typed_word = ''
-
-        draw_text(screen, f"Time Left: {max(0, WORD_DURATION - elapsed_time)} seconds", BLACK, font, WIDTH // 2, HEIGHT // 5)
-        correct_color = GREEN if typed_word == current_word[:len(typed_word)] else RED
-        draw_text(screen, f"{current_word}", correct_color, font, WIDTH // 2, HEIGHT // 2 - 2 * FONT_SIZE)
-        draw_text(screen, f"{typed_word}", BLACK, font, WIDTH // 2, HEIGHT // 2)
-        draw_text(screen, f"Words Typed: {word_count}", BLACK, font, WIDTH // 2, 3 * HEIGHT // 4)
-
-        if len(typed_word) > 0:
-            accuracy = round((correct_chars_count / max(1, total_chars_count)) * 100, 2)
-            draw_text(screen, f"Accuracy: {accuracy}%", BLACK, font, WIDTH // 2, HEIGHT // 2 + 2 * FONT_SIZE)
-
-        if elapsed_time >= WORD_DURATION:
-            wpm = round((word_count / WORD_DURATION) * 60, 2)  # Calculate WPM only based on correct words
-            pygame.draw.rect(screen, LIGHT_GREEN, restart_button)
-            draw_text(screen, "Restart", BLACK, font, restart_button.centerx, restart_button.centery)
-            draw_text(screen, f"WPM: {wpm}", BLACK, font, WIDTH // 2, HEIGHT // 2 + 4 * FONT_SIZE)
-
-            if restart_button.collidepoint(pygame.mouse.get_pos()):
-                start_time = pygame.time.get_ticks()
-                word_count = 0
-                total_word_count = 0
-                correct_chars_count = 0
-                total_chars_count = 0
-                timer_started = False
-                current_word = get_random_word()
-                typed_word = ''
-
-        pygame.display.flip()
-        clock.tick(FPS)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
